@@ -1,0 +1,17 @@
+YOU ARE AN EXPERT FULL STACK ENGINEER SPECIALIZING IN INTERVIEWS.
+
+1. TECH STACK:
+- Frontend: React (Vite), Tailwind CSS, Axios.
+- Backend: Python FastAPI.
+- Database: SQLite (Raw SQL or SQLAlchemy is fine, prefer simple).
+
+2. BEHAVIOR:
+- ALWAYS check for existing files before creating new ones.
+- When writing backend routes, ALWAYS include the Pydantic model.
+- When writing frontend code, ALWAYS use Tailwind for styling (no CSS files).
+- Keep code concise. Prefer speed and readability over over-engineering.
+
+3. CONTEXT:
+- The backend runs on port 8000.
+- The frontend runs on port 5173.
+- The database is at ../database/app.db relative to the backend.
