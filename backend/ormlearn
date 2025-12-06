@@ -1,0 +1,100 @@
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel
+
+# --- 1. DATABASE SETUP ---
+# valid sqlite url
+SQLALCHEMY_DATABASE_URL = "sqlite:///./interview.db"
+# sqlite:// specifies a sqlite database 
+# ./interview.db is the path to the database
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+# maintains pool of connections to the database
+# sqlite is single-threaded so check same thread is false
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# creates current database session
+# automcommit false for manual commit() calls
+# autoflush false for manual flush() calls
+# bind=engine binds the session to the engine
+
+Base = declarative_base()
+# allows mapping python classes to database tables
+
+# --- 2. DATABASE MODEL (The Table) ---
+class Task(Base): # "Base" tells sqlalchemy to map the class to a table
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True, index=True) 
+    title = Column(String, index=True)
+    is_completed = Column(Boolean, default=False)
+
+# primary_key=True -> auto incrementing integer 
+# index=True -> allows for faster lookups -> takes up more space 
+# Create tables immediately
+Base.metadata.create_all(bind=engine)
+
+# --- 3. PYDANTIC SCHEMAS (Data Validation) ---
+class TaskCreate(BaseModel): # BaseModel enables data validation and JSON return
+    title: str
+
+class TaskResponse(BaseModel):
+    id: int
+    title: str
+    is_completed: bool
+
+    class Config:
+        from_attributes = True # Allows attributes to be read directly (task.id) without needing JSON
+
+# --- 4. DEPENDENCY (The Magic Connection) ---
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- 5. APP & ENDPOINTS ---
+app = FastAPI()
+
+# CREATE (Post)
+@app.post("/tasks/", response_model=TaskResponse) # response_model=TaskResponse -> returns a TaskResponse object
+def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+    db_task = Task(title=task.title)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task) # Refresh to get the ID back -> commits the changes to the database
+    return db_task
+
+# READ ALL (Get)
+@app.get("/tasks/", response_model=list[TaskResponse])
+def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    tasks = db.query(Task).offset(skip).limit(limit).all()
+    return tasks
+
+# UPDATE (Put)
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(task_id: int, completed: bool, db: Session = Depends(get_db)):
+    db_task = db.query(Task).filter(Task.id == task_id).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    db_task.is_completed = completed
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+# DELETE (Delete)
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    db_task = db.query(Task).filter(Task.id == task_id).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    db.delete(db_task)
+    db.commit()
+    return {"message": "Task deleted successfully"}

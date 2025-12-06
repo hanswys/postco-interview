@@ -6,7 +6,6 @@ import sqlite3
 
 app = FastAPI()
 
-# 1. OPTIMAL CORS SETUP (Connects to Frontend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"], # Vite default port
@@ -15,17 +14,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. DATABASE HELPER (Raw SQL for speed, or swap for ORM)
+# Path to db
 DB_NAME = "../database/app.db"
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
+    conn = sqlite3.connect(DB_NAME) # db connection object
+    conn.row_factory = sqlite3.Row # maps database rows to Python dictionaries
     return conn
 
 def init_db():
     conn = get_db_connection()
     # EXAMPLE TABLE - Replace this during interview
+    # Sqlite uses raw SQL for speed and syntax (swap for ORM)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,14 +33,14 @@ def init_db():
             status TEXT DEFAULT 'pending'
         )
     ''')
-    conn.commit()
-    conn.close()
+    conn.commit() # confirms changes to the database
+    conn.close() # closes the connection to the database
 
 # Initialize DB on startup
 init_db()
 
 # 3. HEALTH CHECK (Frontend verifies this first)
-@app.get("/health")
+@app.get("/health") 
 def health_check():
     return {"status": "ok", "message": "Backend is ready"}
 
